@@ -1,18 +1,10 @@
 {
+  // Main process (+ shared). Node/Electron runtime — no DOM types.
+  "extends": "./tsconfig.base.json",
   "compilerOptions": {
-    "target": "ES2022",
-    "module": "node16",
-    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "lib": ["ES2022"],
     "rootDir": "src",
-    "outDir": "dist",
-    "strict": true,
-    "noUncheckedIndexedAccess": true,
-    "noFallthroughCasesInSwitch": true,
-    "forceConsistentCasingInFileNames": true,
-    "esModuleInterop": true,
-    "skipLibCheck": true,
-    "sourceMap": true
+    "outDir": "dist"
   },
-  "include": ["src/**/*"],
-  "exclude": ["src/renderer"]
+  "include": ["src/main", "src/shared"]
 }

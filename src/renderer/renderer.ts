@@ -1,30 +1,8 @@
-// Strip UI logic. Deliberately a *script*, not a module: any import (even
-// type-only) makes tsc emit a CommonJS __esModule marker that throws in a
-// plain <script>. The two interfaces below mirror src/shared/types.ts and
-// src/preload/strip-preload.ts.
-
-interface NowPlayingState {
-  hasAudio: boolean;
-  title: string;
-  artist: string;
-  album: string;
-  artworkUrl?: string;
-  currentTime: number;
-  duration: number;
-  paused: boolean;
-}
-
-interface LibbyBarApi {
-  onNowPlaying(callback: (state: NowPlayingState) => void): void;
-  control(msg: {
-    action: 'playpause' | 'forward' | 'back' | 'seek';
-    value?: number;
-  }): Promise<void>;
-}
-
-interface Window {
-  libbybar: LibbyBarApi;
-}
+// Strip UI logic. Deliberately a *script*, not a module — it's loaded via a
+// plain <script> tag, so it must not emit CommonJS/ESM module machinery. Kept
+// a script by having no imports/exports; the shared shapes it needs are
+// ambient (see types.d.ts). (The real blocker to importing here is the
+// renderer's rootDir, not type-only imports, which erase cleanly.)
 
 (() => {
   const $ = <T extends HTMLElement>(id: string): T => {
@@ -48,7 +26,7 @@ interface Window {
   const iconPlay = $('icon-play');
   const iconPause = $('icon-pause');
 
-  const libbybar = (window as unknown as Window).libbybar;
+  const libbybar = window.libbybar;
 
   function formatTime(seconds: number): string {
     if (!Number.isFinite(seconds) || seconds < 0) return '0:00';

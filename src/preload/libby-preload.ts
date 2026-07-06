@@ -70,10 +70,24 @@ let lastSentJson = '';
 let lastSentAt = 0;
 /** Source URL of the artwork the main process currently has. */
 let sentArtworkSrc: string | null = null;
+/** Whether this frame had an <audio> on the previous tick. */
+let hadAudio = false;
 
 function tick(): void {
   const audio = findAudio();
-  if (!audio) return; // some other frame owns the player (or none does)
+  if (!audio) {
+    hadAudio = false; // some other frame owns the player (or none does)
+    return;
+  }
+  // When the player (re)appears, main may have already reset its cache to the
+  // empty state (stale timeout after the previous player closed). Force a full
+  // fresh push — including artwork — so a reopened book doesn't show blank art
+  // just because its artwork URL happens to be unchanged.
+  if (!hadAudio) {
+    sentArtworkSrc = null;
+    lastSentJson = '';
+  }
+  hadAudio = true;
 
   const meta = navigator.mediaSession?.metadata ?? null;
 
@@ -123,8 +137,10 @@ ipcRenderer.on('np:control', (_event, msg: ControlMessage) => {
   const audio = findAudio();
   if (!audio) return; // command is for whichever frame owns the audio
 
-  const clamp = (t: number) =>
-    Math.min(Math.max(0, t), Number.isFinite(audio.duration) ? audio.duration : t);
+  const clamp = (t: number) => {
+    const lo = Math.max(0, t);
+    return Number.isFinite(audio.duration) ? Math.min(lo, audio.duration) : lo;
+  };
 
   switch (msg.action) {
     case 'playpause':

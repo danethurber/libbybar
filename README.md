@@ -27,7 +27,7 @@ it, and drag **LibbyBar** to Applications.
 > quarantine flag from a terminal and it opens with no fuss:
 >
 > ```sh
-> xattr -d com.apple.quarantine /Applications/LibbyBar.app
+> xattr -dr com.apple.quarantine /Applications/LibbyBar.app
 > ```
 
 ### First launch
@@ -70,8 +70,12 @@ git clone https://github.com/danethurber/libbybar.git
 cd libbybar
 npm install
 npm start          # compile (tsc) and run in dev mode
+npm test           # build + node:test suite
 npm run dist       # package an arm64 .dmg into release/
 ```
+
+Runtime problems are logged to `~/Library/Logs/LibbyBar/main.log` (the
+packaged tray app has no console).
 
 ### Architecture
 
@@ -90,8 +94,9 @@ TypeScript everywhere, no framework, no native code:
 
 ## Releases
 
-CI runs on every push and PR (`.github/workflows/ci.yml`). Releases are cut
-automatically by [semantic-release](https://github.com/semantic-release/semantic-release)
+CI runs on every pull request, and on pushes to `main` via the release
+workflow (`.github/workflows/ci.yml`). Releases are cut automatically by
+[semantic-release](https://github.com/semantic-release/semantic-release)
 on pushes to `main`: commit messages follow
 [Conventional Commits](https://www.conventionalcommits.org) (`feat:` → minor,
 `fix:` → patch, `feat!:`/`BREAKING CHANGE:` → major), and each release gets

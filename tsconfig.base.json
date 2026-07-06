@@ -1,0 +1,25 @@
+{
+  // Shared compiler options. Each target config sets its own lib/rootDir/
+  // module and include so the type environments don't bleed across the
+  // main / preload / renderer boundaries.
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "node16",
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noImplicitReturns": true,
+    "noImplicitOverride": true,
+    "noFallthroughCasesInSwitch": true,
+    // isolatedModules guards the type/value erasure the sandboxed preloads
+    // depend on. verbatimModuleSyntax is intentionally NOT set: it forbids
+    // writing ESM import syntax in files that emit CommonJS, which is exactly
+    // this project's pattern (CJS is required for sandboxed preloads).
+    "isolatedModules": true,
+    "forceConsistentCasingInFileNames": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "sourceMap": true
+  }
+}

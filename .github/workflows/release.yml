@@ -23,7 +23,7 @@ jobs:
     needs: ci
     # Must build on macOS arm64: semantic-release's prepare step packages the
     # .dmg (see .releaserc.json) that gets attached to the GitHub Release.
-    runs-on: macos-latest
+    runs-on: macos-15
     permissions:
       contents: write # version-bump commit + tag + GitHub Release
       issues: write # semantic-release comments on released issues
@@ -40,6 +40,14 @@ jobs:
         with:
           node-version-file: .nvmrc
           cache: npm
+
+      - name: Cache Electron binaries
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: |
+            ~/Library/Caches/electron
+            ~/Library/Caches/electron-builder
+          key: electron-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
 
       - run: npm ci
 

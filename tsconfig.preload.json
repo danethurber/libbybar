@@ -1,0 +1,12 @@
+{
+  // Preloads (+ shared, for types). Sandboxed renderers — need DOM types but
+  // emit CommonJS like the main process. (shared/types.ts is re-emitted here
+  // identically to the main build; harmless.)
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "rootDir": "src",
+    "outDir": "dist"
+  },
+  "include": ["src/preload", "src/shared"]
+}

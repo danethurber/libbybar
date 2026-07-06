@@ -4,6 +4,7 @@
 
 import { BrowserWindow, WebContentsView, screen, session } from 'electron';
 import * as path from 'node:path';
+import { logError } from './log';
 
 export const POPOVER_WIDTH = 380;
 export const POPOVER_HEIGHT = 560;
@@ -49,6 +50,11 @@ export function createPopover(): Popover {
   window.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
   window.setAlwaysOnTop(true, 'pop-up-menu');
 
+  // The strip window holds the privileged libbybar bridge — it must never
+  // navigate to or open remote content that could inherit it.
+  window.webContents.on('will-navigate', (event) => event.preventDefault());
+  window.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
+
   void window.loadFile(path.join(__dirname, '../renderer/index.html'));
 
   const libbyView = new WebContentsView({
@@ -81,8 +87,27 @@ export function createPopover(): Popover {
   // Keep the in-page observer ticking while the popover is hidden.
   libbyView.webContents.setBackgroundThrottling(false);
 
+  // Retry the initial load if the network is down at launch (login-item start,
+  // captive portal, DNS blip) so the popover isn't stuck on an error page.
+  let reloadAttempts = 0;
+  libbyView.webContents.on('did-finish-load', () => {
+    reloadAttempts = 0;
+  });
+  libbyView.webContents.on('did-fail-load', (_event, errorCode, _desc, _url, isMainFrame) => {
+    if (!isMainFrame || errorCode === -3) return; // -3 = user-aborted navigation
+    if (reloadAttempts >= 6) return;
+    const delay = Math.min(30_000, 1000 * 2 ** reloadAttempts);
+    reloadAttempts += 1;
+    setTimeout(() => {
+      if (!libbyView.webContents.isDestroyed()) {
+        void libbyView.webContents.loadURL(LIBBY_URL).catch((err) => logError('libby-reload', err));
+      }
+    }, delay);
+  });
+
   // Library sign-in (OverDrive / SAML / IdP) opens popup windows; blocking
-  // them dead-ends login. Allow http(s) children on the same session.
+  // them dead-ends login. Allow http(s) children on the same session, but
+  // don't let a login page (which we don't control) spawn further popups.
   libbyView.webContents.setWindowOpenHandler(({ url }) => {
     if (!/^https?:/.test(url)) return { action: 'deny' };
     return {
@@ -98,6 +123,9 @@ export function createPopover(): Popover {
         },
       },
     };
+  });
+  libbyView.webContents.on('did-create-window', (child) => {
+    child.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
   });
 
   void libbyView.webContents.loadURL(LIBBY_URL);

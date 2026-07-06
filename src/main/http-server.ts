@@ -6,12 +6,25 @@
 // never trigger the side effects. curl just adds -H.
 
 import * as http from 'node:http';
-import { ControlMessage, HTTP_GUARD_HEADER, HTTP_PORT, NowPlayingState } from '../shared/types';
+import {
+  type ControlMessage,
+  HTTP_GUARD_HEADER,
+  HTTP_PORT,
+  type NowPlayingState,
+} from '../shared/types';
+import { logError } from './log';
 
 export interface HttpDeps {
   control(msg: ControlMessage): void;
   getState(): NowPlayingState;
 }
+
+// The custom-header guard alone is bypassable by DNS rebinding: an attacker
+// page that re-resolves its own hostname to 127.0.0.1 makes requests
+// same-origin, so the browser skips the preflight and allows the header. Such
+// requests still carry the attacker's Host, so pinning Host to loopback closes
+// the hole. Raycast's curl sends Host: 127.0.0.1:PORT and is unaffected.
+const ALLOWED_HOSTS = new Set([`127.0.0.1:${HTTP_PORT}`, `localhost:${HTTP_PORT}`]);
 
 export function startHttpServer(deps: HttpDeps): http.Server {
   const server = http.createServer((req, res) => {
@@ -20,6 +33,10 @@ export function startHttpServer(deps: HttpDeps): http.Server {
       res.end(JSON.stringify(body));
     };
 
+    if (!ALLOWED_HOSTS.has(req.headers.host ?? '')) {
+      respond(403, { error: 'bad host' });
+      return;
+    }
     if (req.headers[HTTP_GUARD_HEADER] === undefined) {
       respond(403, { error: `missing ${HTTP_GUARD_HEADER} header` });
       return;
@@ -29,13 +46,25 @@ export function startHttpServer(deps: HttpDeps): http.Server {
       return;
     }
 
-    const pathname = new URL(req.url ?? '/', 'http://127.0.0.1').pathname;
+    let pathname: string;
+    try {
+      pathname = new URL(req.url ?? '/', 'http://127.0.0.1').pathname;
+    } catch {
+      // Node passes through malformed request-targets (e.g. `//[`) that make
+      // new URL throw; an unhandled throw here would kill the main process.
+      respond(400, { error: 'bad request target' });
+      return;
+    }
+
     switch (pathname) {
       case '/playpause':
       case '/forward':
       case '/back':
         deps.control({ action: pathname.slice(1) as ControlMessage['action'] });
-        respond(200, { ok: true, state: deps.getState() });
+        // Do not echo getState() here: control is async (main -> preload ->
+        // audio -> next poll), so the state wouldn't yet reflect the command.
+        // Consumers read /status instead.
+        respond(200, { ok: true });
         return;
       case '/status':
         respond(200, deps.getState());
@@ -48,7 +77,7 @@ export function startHttpServer(deps: HttpDeps): http.Server {
   server.on('error', (err) => {
     // Most likely EADDRINUSE (a second instance shouldn't happen — we hold
     // the single-instance lock — but don't crash the app over the port).
-    console.error('[libbybar] HTTP server error, Raycast endpoints disabled:', err.message);
+    logError('http-server', err);
   });
 
   server.listen(HTTP_PORT, '127.0.0.1');

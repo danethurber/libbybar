@@ -5,6 +5,9 @@ import { createPopover } from './popover';
 import { createTray } from './tray';
 import { createNowPlayingRelay } from './now-playing';
 import { startHttpServer } from './http-server';
+import { installErrorLogging } from './log';
+
+installErrorLogging();
 
 // Tray-only: never in the Dock or app switcher. (The packaged app also sets
 // LSUIElement=true in Info.plist; dock.hide() covers `npm start` dev runs.)
@@ -23,7 +26,12 @@ if (!app.requestSingleInstanceLock()) {
       popover.libbyView.webContents,
       popover.window.webContents,
     );
-    startHttpServer(relay);
+    const server = startHttpServer(relay);
+
+    app.on('before-quit', () => {
+      relay.dispose();
+      server.close();
+    });
   });
 
   // Tray app: the popover hides rather than closes, but never quit on

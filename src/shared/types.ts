@@ -36,16 +36,17 @@ export const EMPTY_STATE: NowPlayingState = {
   paused: true,
 };
 
-/** IPC channel names, in one place so main/preloads can't drift apart. */
+/** IPC channel names, in one place so main/preloads can't drift apart.
+ *  (The sandboxed preloads can't import these at runtime, so they repeat the
+ *  literals — test/ipc-channels.test.js enforces that they stay in sync.) */
 export const IPC = {
-  /** Libby preload -> main: NowPlayingState push. */
+  /** NowPlayingState push. Bidirectional on purpose: Libby preload -> main,
+   *  and main -> strip renderer (two different WebContents, same channel). */
   state: 'np:state',
   /** main -> Libby preload: ControlMessage. */
   control: 'np:control',
   /** strip renderer -> main: ControlMessage (invoke). */
   controlRequest: 'np:control-request',
-  /** main -> strip renderer: NowPlayingState push. */
-  stateToStrip: 'np:state',
 } as const;
 
 /** Loopback HTTP server for Raycast. */

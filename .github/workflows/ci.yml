@@ -1,8 +1,8 @@
 name: ci
 
 on:
-  push:
-    branches: [main]
+  # No standalone `push` trigger: on pushes to main, release.yml calls this via
+  # workflow_call, so a push trigger here would just double every macOS build.
   pull_request:
   workflow_call:
 
@@ -15,8 +15,9 @@ permissions:
 
 jobs:
   build:
-    # arm64 runner — the app targets Apple Silicon only.
-    runs-on: macos-latest
+    # arm64 runner — the app targets Apple Silicon only. Pinned (not
+    # macos-latest) so the release artifact's toolchain doesn't drift.
+    runs-on: macos-15
     env:
       # Never attempt code signing on CI (unsigned personal/community build).
       CSC_IDENTITY_AUTO_DISCOVERY: "false"
@@ -26,11 +27,25 @@ jobs:
         with:
           node-version-file: .nvmrc
           cache: npm
+      # setup-node's npm cache only covers ~/.npm; Electron's ~100MB binary and
+      # electron-builder's helpers download separately. Cache them explicitly.
+      - name: Cache Electron binaries
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: |
+            ~/Library/Caches/electron
+            ~/Library/Caches/electron-builder
+          key: electron-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
       - run: npm ci
-      - run: npm run build
-      - name: Package .dmg (unpublished)
+      - run: npm test
+      # Validate the full packaging path on PRs only. On workflow_call (push to
+      # main) semantic-release builds the release DMG, so skip the duplicate.
+      - name: Package .dmg (PR validation)
+        if: github.event_name == 'pull_request'
         run: npx electron-builder --publish never
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      - name: Upload .dmg artifact
+        if: github.event_name == 'pull_request'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: dmg
           path: release/*.dmg

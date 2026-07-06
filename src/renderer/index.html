@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta
+    http-equiv="Content-Security-Policy"
+    content="default-src 'self'; img-src 'self' https: data:; style-src 'self'"
+  />
+  <title>LibbyBar</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <!-- Now-playing strip. The Libby site is a sibling WebContentsView that the
+       main process positions below this strip — it is not in this DOM. -->
+  <main id="strip">
+    <div id="empty-state">Nothing playing — open a book below</div>
+
+    <div id="now-playing" hidden>
+      <div class="top-row">
+        <img id="artwork" alt="" draggable="false" />
+        <div class="titles">
+          <div id="title"></div>
+          <div id="subtitle"></div>
+        </div>
+      </div>
+
+      <div class="progress-row">
+        <span id="time-elapsed" class="time">0:00</span>
+        <div id="progress-track">
+          <div id="progress-fill"></div>
+        </div>
+        <span id="time-total" class="time">0:00</span>
+      </div>
+
+      <div class="controls-row">
+        <button id="btn-back" title="Back 15 seconds" aria-label="Back 15 seconds">
+          <svg viewBox="0 0 24 24" width="22" height="22">
+            <path d="M12 5V2L7 6l5 4V7a6 6 0 1 1-6 6H4a8 8 0 1 0 8-8z" fill="currentColor"/>
+            <text x="12" y="15.5" text-anchor="middle" font-size="7.5" font-weight="700" fill="currentColor">15</text>
+          </svg>
+        </button>
+        <button id="btn-playpause" title="Play/Pause" aria-label="Play or pause">
+          <svg id="icon-play" viewBox="0 0 24 24" width="26" height="26">
+            <path d="M8 5v14l11-7z" fill="currentColor"/>
+          </svg>
+          <svg id="icon-pause" viewBox="0 0 24 24" width="26" height="26" hidden>
+            <path d="M6 5h4v14H6zM14 5h4v14h-4z" fill="currentColor"/>
+          </svg>
+        </button>
+        <button id="btn-forward" title="Forward 15 seconds" aria-label="Forward 15 seconds">
+          <svg viewBox="0 0 24 24" width="22" height="22">
+            <path d="M12 5V2l5 4-5 4V7a6 6 0 1 0 6 6h2a8 8 0 1 1-8-8z" fill="currentColor"/>
+            <text x="12" y="15.5" text-anchor="middle" font-size="7.5" font-weight="700" fill="currentColor">15</text>
+          </svg>
+        </button>
+      </div>
+    </div>
+  </main>
+
+  <script src="renderer.js"></script>
+</body>
+</html>

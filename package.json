@@ -1,0 +1,58 @@
+{
+  "name": "libbybar",
+  "productName": "LibbyBar",
+  "version": "1.0.0",
+  "description": "macOS menu bar now-playing controller for the Libby web player",
+  "main": "dist/main/main.js",
+  "private": true,
+  "author": "Dane Thurber",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/danethurber/libbybar.git"
+  },
+  "scripts": {
+    "build": "tsc && tsc -p tsconfig.renderer.json && cp src/renderer/index.html src/renderer/styles.css dist/renderer/",
+    "start": "npm run build && electron .",
+    "watch": "tsc -w",
+    "icons": "node assets/gen-tray-icon.ts",
+    "dist": "npm run build && electron-builder"
+  },
+  "build": {
+    "appId": "com.danethurber.libbybar",
+    "productName": "LibbyBar",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*",
+      "assets/*.png",
+      "package.json"
+    ],
+    "mac": {
+      "category": "public.app-category.music",
+      "icon": "assets/appIcon.png",
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "arm64"
+          ]
+        }
+      ],
+      "identity": null,
+      "extendInfo": {
+        "LSUIElement": true
+      }
+    }
+  },
+  "devDependencies": {
+    "@semantic-release/exec": "^7.1.0",
+    "@semantic-release/git": "^10.0.1",
+    "@types/node": "^26.1.0",
+    "electron": "^43.0.0",
+    "electron-builder": "^26.15.3",
+    "semantic-release": "^25.0.5",
+    "typescript": "^6.0.3"
+  }
+}

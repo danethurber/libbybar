@@ -1,0 +1,13 @@
+{
+  // The strip renderer compiles separately: it must emit a plain browser
+  // script (no CommonJS machinery), while main/preloads emit CJS for Node.
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "module": "es2022",
+    "moduleResolution": "bundler",
+    "rootDir": "src/renderer",
+    "outDir": "dist/renderer"
+  },
+  "include": ["src/renderer"],
+  "exclude": []
+}

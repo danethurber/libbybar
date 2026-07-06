@@ -19,10 +19,12 @@ Download the latest `.dmg` from
 [**Releases**](https://github.com/danethurber/libbybar/releases/latest), open
 it, and drag **LibbyBar** to Applications.
 
-> **Gatekeeper note:** builds are unsigned (no Apple Developer certificate).
-> On first launch macOS will refuse to open the app. Either right-click →
-> **Open**, approve it under **System Settings → Privacy & Security → Open
-> Anyway**, or clear the quarantine flag:
+> **Gatekeeper note:** builds are ad-hoc signed, not notarized (no Apple
+> Developer certificate). On first launch macOS shows a warning that it can't
+> verify the app. Close the warning, open **System Settings → Privacy &
+> Security**, scroll down, and click **Open Anyway** (on macOS 14 and
+> earlier, right-click → **Open** also works). Alternatively, clear the
+> quarantine flag from a terminal and it opens with no fuss:
 >
 > ```sh
 > xattr -d com.apple.quarantine /Applications/LibbyBar.app

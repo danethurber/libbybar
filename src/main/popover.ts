@@ -7,8 +7,8 @@ import * as path from 'node:path';
 import { logError } from './log';
 
 export const POPOVER_WIDTH = 380;
-export const POPOVER_HEIGHT = 560;
-export const STRIP_HEIGHT = 128;
+export const POPOVER_HEIGHT = 600;
+export const STRIP_HEIGHT = 76;
 
 const LIBBY_URL = 'https://libbyapp.com';
 const LIBBY_PARTITION = 'persist:libby';

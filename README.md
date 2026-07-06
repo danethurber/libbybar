@@ -1,15 +1,14 @@
 # LibbyBar
 
 A macOS menu bar app for [Libby](https://libbyapp.com) audiobooks. It wraps the
-Libby web player in a tray popover and adds a Spotify-style now-playing strip
-on top: cover art, title and chapter, a scrub bar, and play/pause / ±15s
-controls — plus macOS Now Playing, media key support, and a local HTTP API for
-[Raycast](https://raycast.com).
+Libby web player in a tray popover with a compact now-playing strip on top —
+cover art, title, and chapter — plus macOS Now Playing, media key support, and
+a local HTTP API for [Raycast](https://raycast.com).
 
 - **Tray-only** — lives in the menu bar, never in the Dock or app switcher
 - **Your library login persists** across launches
-- **Controls the real player** — buttons drive the page's `<audio>` element
-  directly, so position sync with your other Libby devices keeps working
+- **Now-playing strip** — a read-only display driven by the page's Media
+  Session; playback controls are Libby's own, right below it
 - **macOS Now Playing + hardware media keys** work out of the box
 - Apple Silicon only
 
@@ -41,27 +40,31 @@ own identity pages. This is one-time; the session persists.
 - **Left-click** the tray icon: toggle the popover (it hides when it loses
   focus; audio keeps playing).
 - **Right-click** the tray icon: menu with Quit.
-- Start an audiobook and the strip shows what's playing. macOS **Now Playing**
-  and keyboard **media keys** work through Chromium's Media Session bridge.
+- Start an audiobook and the strip shows what's playing; use Libby's own
+  player controls below it. macOS **Now Playing** and keyboard **media keys**
+  work through Chromium's Media Session bridge — so play/pause and skip from
+  the keyboard work without any extra setup.
+
+> Playback control is intentionally left to Libby's player and the system
+> media keys: Libby plays through an audio element the app can't reach, so a
+> custom scrub bar / transport buttons couldn't reliably drive it. The strip
+> is a read-only now-playing display.
 
 ## Raycast
 
 Add the `raycast/` folder as a script directory (Raycast Settings →
-Extensions → Script Commands → Add Directories). You get **Libby
-Play/Pause**, **Libby Skip Forward 15s**, and **Libby Skip Back 15s**.
+Extensions → Script Commands → Add Directories) for the **Libby Now Playing**
+command, which shows the current book.
 
-The scripts call a loopback-only API on port `48151`:
+It reads a loopback-only status API on port `48151`:
 
 ```sh
 curl -H "X-LibbyBar: 1" http://127.0.0.1:48151/status      # now-playing JSON
-curl -H "X-LibbyBar: 1" http://127.0.0.1:48151/playpause
-curl -H "X-LibbyBar: 1" http://127.0.0.1:48151/forward
-curl -H "X-LibbyBar: 1" http://127.0.0.1:48151/back
 ```
 
 The `X-LibbyBar` header is required: custom headers force a CORS preflight,
-which fails, so a random web page can't fire requests at the API. Anything
-that can set a header (curl, Raycast, Shortcuts, Keyboard Maestro) can use it.
+which fails, so a random web page can't read your now-playing info. Anything
+that can set a header (curl, Raycast, Shortcuts) can use it.
 
 ## Building from source
 
@@ -81,14 +84,13 @@ packaged tray app has no console).
 
 TypeScript everywhere, no framework, no native code:
 
-- The popover window's own renderer is the now-playing strip; the Libby site
-  lives in a `WebContentsView` positioned below it (`persist:libby` session).
-- A preload inside the Libby view observes the `<audio>` element and
-  `navigator.mediaSession` (in every frame) and pushes state to the main
-  process, which relays it to the strip and serves `/status`.
-- Transport commands flow the reverse path and drive the `<audio>` element
-  directly — never Libby's DOM buttons, so UI changes on their end are less
-  likely to break controls.
+- The popover window's own renderer is the read-only now-playing strip; the
+  Libby site lives in a `WebContentsView` positioned below it (`persist:libby`
+  session).
+- A preload inside the Libby view observes `navigator.mediaSession` (in every
+  frame) and pushes state one-way to the main process, which relays it to the
+  strip and serves `/status`. There is no control path back — Libby's own
+  player handles interaction.
 - `npm run icons` regenerates the tray template icons from
   `assets/gen-tray-icon.ts` (dependency-free PNG encoder).
 

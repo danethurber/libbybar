@@ -1,20 +1,21 @@
 // Runs inside the Libby site (every frame, via nodeIntegrationInSubFrames).
-// Observes the page's <audio> element + navigator.mediaSession and pushes
-// NowPlayingState to main; executes transport commands sent by main.
+// Observes navigator.mediaSession and pushes NowPlayingState to main for the
+// read-only strip. Libby plays audio through a detached element we can't
+// query, so we rely on Media Session metadata — the same data that drives
+// macOS Now Playing. There are no transport controls: Libby's own player UI
+// handles interaction, so this preload never touches playback.
 //
 // NOTE: sandboxed preloads can only require Electron/Node built-ins — no
-// relative modules — so IPC channel names are literals here (mirrors of
-// IPC.* in src/shared/types.ts) and shared types are import-type only.
+// relative modules — so the IPC channel name is a literal here (mirror of
+// IPC.state in src/shared/types.ts) and shared types are import-type only.
 
 import { ipcRenderer } from 'electron';
-import type { ControlMessage, NowPlayingState } from '../shared/types';
+import type { NowPlayingState } from '../shared/types';
 
 const POLL_MS = 500;
 /** Re-send unchanged state at least this often, as a liveness heartbeat —
- *  main clears the strip when pushes stop (player closed, frame gone). */
+ *  main clears the strip when pushes stop (book closed, frame gone). */
 const HEARTBEAT_MS = 2000;
-
-const findAudio = (): HTMLAudioElement | null => document.querySelector('audio');
 
 // --- artwork ---------------------------------------------------------------
 
@@ -70,30 +71,36 @@ let lastSentJson = '';
 let lastSentAt = 0;
 /** Source URL of the artwork the main process currently has. */
 let sentArtworkSrc: string | null = null;
-/** Whether this frame had an <audio> on the previous tick. */
-let hadAudio = false;
+/** Whether this frame reported media on the previous tick. */
+let hadMedia = false;
 
 function tick(): void {
-  const audio = findAudio();
-  if (!audio) {
-    hadAudio = false; // some other frame owns the player (or none does)
+  const session = navigator.mediaSession ?? null;
+  const meta = session?.metadata ?? null;
+
+  if (!meta) {
+    // This frame has no now-playing metadata. If it was reporting until now
+    // (book closed), push one empty state so the strip clears; otherwise stay
+    // silent so we don't clobber the frame that actually owns the session.
+    if (hadMedia) {
+      hadMedia = false;
+      sentArtworkSrc = null;
+      lastSentJson = '';
+      ipcRenderer.send('np:state', { ...EMPTY });
+    }
     return;
   }
-  // When the player (re)appears, main may have already reset its cache to the
-  // empty state (stale timeout after the previous player closed). Force a full
-  // fresh push — including artwork — so a reopened book doesn't show blank art
-  // just because its artwork URL happens to be unchanged.
-  if (!hadAudio) {
+
+  // Media (re)appeared: force a fresh full push including artwork, in case
+  // main already reset its cache after the previous book closed.
+  if (!hadMedia) {
     sentArtworkSrc = null;
     lastSentJson = '';
   }
-  hadAudio = true;
-
-  const meta = navigator.mediaSession?.metadata ?? null;
+  hadMedia = true;
 
   // Only include artworkUrl when it changed — data: URLs are large and state
-  // is pushed twice a second while playing. Main keeps the cached value when
-  // the field is omitted.
+  // is pushed frequently. Main keeps the cached value when the field is omitted.
   const artworkSrc = pickArtworkSrc(meta);
   let artworkUrl: string | undefined;
   if (artworkSrc !== sentArtworkSrc) {
@@ -109,13 +116,11 @@ function tick(): void {
   }
 
   const state: NowPlayingState = {
-    hasAudio: true,
-    title: meta?.title ?? '',
-    artist: meta?.artist ?? '',
-    album: meta?.album ?? '',
-    currentTime: audio.currentTime || 0,
-    duration: Number.isFinite(audio.duration) ? audio.duration : 0,
-    paused: audio.paused,
+    hasMedia: true,
+    title: meta.title ?? '',
+    artist: meta.artist ?? '',
+    album: meta.album ?? '',
+    playing: session?.playbackState === 'playing',
   };
   if (artworkUrl !== undefined) state.artworkUrl = artworkUrl;
 
@@ -127,36 +132,13 @@ function tick(): void {
   ipcRenderer.send('np:state', state);
 }
 
+const EMPTY: NowPlayingState = {
+  hasMedia: false,
+  title: '',
+  artist: '',
+  album: '',
+  artworkUrl: '',
+  playing: false,
+};
+
 setInterval(tick, POLL_MS);
-
-// --- transport commands ----------------------------------------------------
-
-const SKIP_SECONDS = 15;
-
-ipcRenderer.on('np:control', (_event, msg: ControlMessage) => {
-  const audio = findAudio();
-  if (!audio) return; // command is for whichever frame owns the audio
-
-  const clamp = (t: number) => {
-    const lo = Math.max(0, t);
-    return Number.isFinite(audio.duration) ? Math.min(lo, audio.duration) : lo;
-  };
-
-  switch (msg.action) {
-    case 'playpause':
-      if (audio.paused) void audio.play().catch(() => {});
-      else audio.pause();
-      break;
-    case 'forward':
-      audio.currentTime = clamp(audio.currentTime + SKIP_SECONDS);
-      break;
-    case 'back':
-      audio.currentTime = clamp(audio.currentTime - SKIP_SECONDS);
-      break;
-    case 'seek':
-      if (typeof msg.value === 'number' && Number.isFinite(audio.duration)) {
-        audio.currentTime = clamp(msg.value * audio.duration);
-      }
-      break;
-  }
-});

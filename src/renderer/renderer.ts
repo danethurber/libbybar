@@ -1,6 +1,6 @@
-// Strip UI logic. Deliberately a *script*, not a module — it's loaded via a
-// plain <script> tag, so it must not emit CommonJS/ESM module machinery. Kept
-// a script by having no imports/exports; the shared shapes it needs are
+// Read-only strip UI. Deliberately a *script*, not a module — it's loaded via
+// a plain <script> tag, so it must not emit CommonJS/ESM module machinery.
+// Kept a script by having no imports/exports; the shared shapes it needs are
 // ambient (see types.d.ts). (The real blocker to importing here is the
 // renderer's rootDir, not type-only imports, which erase cleanly.)
 
@@ -16,33 +16,12 @@
   const artwork = $<HTMLImageElement>('artwork');
   const title = $('title');
   const subtitle = $('subtitle');
-  const timeElapsed = $('time-elapsed');
-  const timeTotal = $('time-total');
-  const progressTrack = $('progress-track');
-  const progressFill = $('progress-fill');
-  const btnBack = $('btn-back');
-  const btnPlayPause = $('btn-playpause');
-  const btnForward = $('btn-forward');
-  const iconPlay = $('icon-play');
-  const iconPause = $('icon-pause');
+  const stateDot = $('state-dot');
 
   const libbybar = window.libbybar;
 
-  function formatTime(seconds: number): string {
-    if (!Number.isFinite(seconds) || seconds < 0) return '0:00';
-    const s = Math.floor(seconds % 60);
-    const m = Math.floor((seconds / 60) % 60);
-    const h = Math.floor(seconds / 3600);
-    const mm = h > 0 ? String(m).padStart(2, '0') : String(m);
-    return `${h > 0 ? `${h}:` : ''}${mm}:${String(s).padStart(2, '0')}`;
-  }
-
-  // After a user seek, ignore incoming progress for a beat so the bar doesn't
-  // jump back while the (500ms-cadence) state catches up.
-  let suppressProgressUntil = 0;
-
   function render(state: NowPlayingState): void {
-    const active = state.hasAudio;
+    const active = state.hasMedia;
     emptyState.hidden = active;
     nowPlaying.hidden = !active;
     if (!active) return;
@@ -53,28 +32,9 @@
     const src = state.artworkUrl ?? '';
     if (artwork.getAttribute('src') !== src) artwork.setAttribute('src', src);
 
-    iconPlay.hidden = !state.paused;
-    iconPause.hidden = state.paused;
-
-    if (Date.now() >= suppressProgressUntil) {
-      const fraction = state.duration > 0 ? state.currentTime / state.duration : 0;
-      progressFill.style.width = `${(fraction * 100).toFixed(2)}%`;
-      timeElapsed.textContent = formatTime(state.currentTime);
-      timeTotal.textContent = formatTime(state.duration);
-    }
+    stateDot.classList.toggle('playing', state.playing);
+    stateDot.title = state.playing ? 'Playing' : 'Paused';
   }
 
   libbybar.onNowPlaying(render);
-
-  btnPlayPause.addEventListener('click', () => void libbybar.control({ action: 'playpause' }));
-  btnBack.addEventListener('click', () => void libbybar.control({ action: 'back' }));
-  btnForward.addEventListener('click', () => void libbybar.control({ action: 'forward' }));
-
-  progressTrack.addEventListener('click', (event) => {
-    const rect = progressTrack.getBoundingClientRect();
-    const fraction = Math.min(1, Math.max(0, (event.clientX - rect.left) / rect.width));
-    progressFill.style.width = `${(fraction * 100).toFixed(2)}%`;
-    suppressProgressUntil = Date.now() + 1200;
-    void libbybar.control({ action: 'seek', value: fraction });
-  });
 })();

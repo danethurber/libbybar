@@ -39,10 +39,8 @@ function rawRequest(line) {
 }
 
 test('loopback HTTP API', async (t) => {
-  const controls = [];
   const server = startHttpServer({
-    control: (msg) => controls.push(msg),
-    getState: () => ({ hasAudio: false, title: 'x' }),
+    getState: () => ({ hasMedia: false, title: 'x' }),
   });
   await new Promise((resolve) => server.once('listening', resolve));
   t.after(() => server.close());
@@ -65,14 +63,12 @@ test('loopback HTTP API', async (t) => {
   await t.test('/status -> 200 with state JSON', async () => {
     const res = await request({ path: '/status', headers: { 'x-libbybar': '1' } });
     assert.equal(res.status, 200);
-    assert.equal(JSON.parse(res.body).hasAudio, false);
+    assert.equal(JSON.parse(res.body).hasMedia, false);
   });
 
-  await t.test('/playpause -> 200 {ok:true} and fires control (no stale state)', async () => {
+  await t.test('removed control endpoint -> 404', async () => {
     const res = await request({ path: '/playpause', headers: { 'x-libbybar': '1' } });
-    assert.equal(res.status, 200);
-    assert.deepEqual(JSON.parse(res.body), { ok: true });
-    assert.equal(controls.at(-1).action, 'playpause');
+    assert.equal(res.status, 404);
   });
 
   await t.test('unknown route -> 404', async () => {

@@ -4,24 +4,16 @@
 // src/preload/strip-preload.ts. A .d.ts never emits, so it stays a script.
 
 interface NowPlayingState {
-  hasAudio: boolean;
+  hasMedia: boolean;
   title: string;
   artist: string;
   album: string;
   artworkUrl?: string;
-  currentTime: number;
-  duration: number;
-  paused: boolean;
-}
-
-interface StripControlMessage {
-  action: 'playpause' | 'forward' | 'back' | 'seek';
-  value?: number;
+  playing: boolean;
 }
 
 interface LibbyBarApi {
   onNowPlaying(callback: (state: NowPlayingState) => void): void;
-  control(msg: StripControlMessage): Promise<void>;
 }
 
 interface Window {

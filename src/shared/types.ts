@@ -1,18 +1,16 @@
-// Types shared between the main process, preloads, and the strip renderer.
-
-export type ControlAction = 'playpause' | 'forward' | 'back' | 'seek';
-
-export interface ControlMessage {
-  action: ControlAction;
-  /** For 'seek': target position as a fraction of duration (0..1). */
-  value?: number;
-}
+// Types shared between the main process, the Libby preload, and the strip
+// renderer. The strip is a read-only now-playing display driven entirely by
+// navigator.mediaSession — Libby plays through a detached audio element we
+// can't reach, but it does populate Media Session, which is also what feeds
+// macOS Now Playing and the media keys. There are no transport controls: the
+// embedded Libby player handles interaction.
 
 export interface NowPlayingState {
-  hasAudio: boolean;
+  hasMedia: boolean;
   title: string;
-  /** Libby puts the author / chapter info in mediaSession artist/album. */
+  /** Libby puts the author / narrator here. */
   artist: string;
+  /** Libby puts the chapter / album here. */
   album: string;
   /**
    * https: or data: URL for the cover. Omitted (undefined) in pushes where
@@ -20,20 +18,17 @@ export interface NowPlayingState {
    * the previous value. Empty string means "no artwork".
    */
   artworkUrl?: string;
-  currentTime: number;
-  duration: number;
-  paused: boolean;
+  /** From navigator.mediaSession.playbackState === 'playing'. */
+  playing: boolean;
 }
 
 export const EMPTY_STATE: NowPlayingState = {
-  hasAudio: false,
+  hasMedia: false,
   title: '',
   artist: '',
   album: '',
   artworkUrl: '',
-  currentTime: 0,
-  duration: 0,
-  paused: true,
+  playing: false,
 };
 
 /** IPC channel names, in one place so main/preloads can't drift apart.
@@ -43,13 +38,9 @@ export const IPC = {
   /** NowPlayingState push. Bidirectional on purpose: Libby preload -> main,
    *  and main -> strip renderer (two different WebContents, same channel). */
   state: 'np:state',
-  /** main -> Libby preload: ControlMessage. */
-  control: 'np:control',
-  /** strip renderer -> main: ControlMessage (invoke). */
-  controlRequest: 'np:control-request',
 } as const;
 
-/** Loopback HTTP server for Raycast. */
+/** Loopback HTTP server for Raycast (read-only now-playing status). */
 export const HTTP_PORT = 48151;
 /** Requests must carry this header — forces a CORS preflight that fails for web pages. */
 export const HTTP_GUARD_HEADER = 'x-libbybar';

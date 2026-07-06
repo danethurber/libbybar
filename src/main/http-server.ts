@@ -1,21 +1,15 @@
-// Loopback HTTP API for Raycast script commands.
+// Loopback HTTP API for Raycast — read-only now-playing status.
 //
 // No auth (loopback only), but every request must carry the X-LibbyBar
 // header: browsers force a CORS preflight for custom headers and the
-// preflight fails here, so a random web page's fetch() to 127.0.0.1 can
-// never trigger the side effects. curl just adds -H.
+// preflight fails here, so a random web page's fetch() to 127.0.0.1 can't
+// read your now-playing info. curl just adds -H.
 
 import * as http from 'node:http';
-import {
-  type ControlMessage,
-  HTTP_GUARD_HEADER,
-  HTTP_PORT,
-  type NowPlayingState,
-} from '../shared/types';
+import { HTTP_GUARD_HEADER, HTTP_PORT, type NowPlayingState } from '../shared/types';
 import { logError } from './log';
 
 export interface HttpDeps {
-  control(msg: ControlMessage): void;
   getState(): NowPlayingState;
 }
 
@@ -56,22 +50,11 @@ export function startHttpServer(deps: HttpDeps): http.Server {
       return;
     }
 
-    switch (pathname) {
-      case '/playpause':
-      case '/forward':
-      case '/back':
-        deps.control({ action: pathname.slice(1) as ControlMessage['action'] });
-        // Do not echo getState() here: control is async (main -> preload ->
-        // audio -> next poll), so the state wouldn't yet reflect the command.
-        // Consumers read /status instead.
-        respond(200, { ok: true });
-        return;
-      case '/status':
-        respond(200, deps.getState());
-        return;
-      default:
-        respond(404, { error: 'unknown endpoint' });
+    if (pathname === '/status') {
+      respond(200, deps.getState());
+      return;
     }
+    respond(404, { error: 'unknown endpoint' });
   });
 
   server.on('error', (err) => {

@@ -1,7 +1,7 @@
 {
   "name": "libbybar",
   "productName": "LibbyBar",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "macOS menu bar now-playing controller for the Libby web player",
   "main": "dist/main/main.js",
   "private": true,
